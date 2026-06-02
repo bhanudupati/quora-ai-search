@@ -1,0 +1,17 @@
+[
+  {
+    "id": "q1",
+    "question": "How can I become a data scientist?",
+    "answer": "Start with Python, SQL, statistics, machine learning, and real projects. Build a portfolio with data cleaning, visualization, modeling, and deployment."
+  },
+  {
+    "id": "q2",
+    "question": "What skills are needed for machine learning jobs?",
+    "answer": "Important skills include Python, pandas, NumPy, scikit-learn, SQL, statistics, model evaluation, feature engineering, and cloud platforms like AWS or GCP."
+  },
+  {
+    "id": "q3",
+    "question": "How do I learn Python for data science?",
+    "answer": "Learn Python basics first, then practice pandas, NumPy, visualization, and machine learning libraries. Work on small datasets and gradually build projects."
+  }
+]
