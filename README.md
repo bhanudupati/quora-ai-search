@@ -2,6 +2,8 @@
 
 A Retrieval-Augmented Generation (RAG) agent that fetches real Quora discussions and synthesizes them into comprehensive, grounded answers using AI.
 
+**🚀 Live App:** [quora-ai-search-4fxpklcfxurkse4nmnitbg.streamlit.app](https://quora-ai-search-4fxpklcfxurkse4nmnitbg.streamlit.app/)
+
 ---
 
 ## 🧠 What is this?
@@ -11,7 +13,7 @@ Instead of relying on a static dataset or an AI's general training knowledge, th
 1. **Searches Quora live** for your question using SerpAPI
 2. **Stores results** as vector embeddings in ChromaDB
 3. **Retrieves** the most semantically relevant chunks
-4. **Generates** a detailed, grounded answer using Groq's Llama 3
+4. **Generates** a detailed, grounded answer using Groq's Llama 3.3
 
 The result: answers backed by real human discussions from Quora, not hallucinated responses.
 
@@ -46,7 +48,8 @@ Answer displayed in Streamlit UI ✅
 | Live Data | `SerpAPI` (Google search, site:quora.com) |
 | LLM | `Groq` (llama-3.3-70b-versatile) |
 | UI | `Streamlit` |
-| Environment | Python 3.13, Windows, venv |
+| Deployment | `Streamlit Community Cloud` |
+| Environment | Python 3.12, Windows, venv |
 
 ---
 
@@ -55,22 +58,23 @@ Answer displayed in Streamlit UI ✅
 ```
 quora-ai-search/
 ├── app/
-│   ├── streamlit_app.py      # Web UI
-│   ├── rag_agent.py          # Core RAG pipeline (CLI)
+│   ├── streamlit_app.py      # Web UI (main app)
+│   ├── rag_agent.py          # Core RAG pipeline (CLI version)
 │   ├── create_embeddings.py  # Embedding utility
 │   ├── load_data.py          # Data loader utility
 │   ├── search.py             # Search utility
 │   └── .env                  # API keys (not committed)
 ├── data/
 │   └── quora_sample.json     # Sample Q&A dataset
-├── venv/                     # Virtual environment
+├── venv/                      # Virtual environment
+├── requirements.txt           # Python dependencies (pinned for deployment)
 ├── .gitignore
 └── README.md
 ```
 
 ---
 
-## ⚙️ Setup & Installation
+## ⚙️ Setup & Installation (Local)
 
 ### 1. Clone the repository
 ```bash
@@ -91,7 +95,7 @@ source venv/bin/activate
 
 ### 3. Install dependencies
 ```bash
-pip install sentence-transformers chromadb groq serpapi google-search-results python-dotenv streamlit
+pip install -r requirements.txt
 ```
 
 ### 4. Set up API keys
@@ -135,20 +139,41 @@ This makes answers more accurate, current, and grounded in real content.
 
 ---
 
+## ☁️ Deployment
+
+This app is deployed on **Streamlit Community Cloud**.
+
+Key deployment notes:
+- Python version pinned to **3.12** (3.14 causes dependency conflicts)
+- `chromadb==0.4.24` and `protobuf==4.25.3` pinned to avoid OpenTelemetry/protobuf conflicts
+- `numpy<2.0.0` pinned for compatibility with `chromadb`'s `np.float_` usage
+- API keys configured via Streamlit Cloud **Secrets** (not `.env`)
+
+To deploy your own copy:
+1. Fork this repo
+2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
+3. Set main file path to `app/streamlit_app.py`
+4. Add `GROQ_API_KEY` and `SERPAPI_KEY` in Advanced Settings → Secrets
+
+---
+
 ## 🔑 API Keys & Security
 
-- API keys are stored in `app/.env` which is listed in `.gitignore`
-- **Never commit your `.env` file** to version control
+- API keys are stored in `app/.env` (local) or Streamlit Secrets (cloud)
+- `.env` is listed in `.gitignore` — **never commit it**
 - Both Groq and SerpAPI offer free tiers sufficient for personal use
 
 ---
 
 ## 🛣️ Roadmap
 
+- [x] Live Quora data retrieval via SerpAPI
+- [x] RAG pipeline with ChromaDB + Groq
+- [x] Premium Streamlit UI
+- [x] Deploy to Streamlit Cloud
 - [ ] Persistent ChromaDB storage across sessions
-- [ ] Display source links in UI
 - [ ] Conversation memory for follow-up questions
-- [ ] Deploy to Streamlit Cloud
+- [ ] Caching to reduce redundant SerpAPI calls
 
 ---
 
