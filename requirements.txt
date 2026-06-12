@@ -1,6 +1,7 @@
 ﻿streamlit
-chromadb
+chromadb==0.4.24
 sentence-transformers
 groq
 google-search-results
 python-dotenv
+protobuf==4.25.3
