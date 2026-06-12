@@ -5,3 +5,4 @@ groq
 google-search-results
 python-dotenv
 protobuf==4.25.3
+numpy<2.0.0
