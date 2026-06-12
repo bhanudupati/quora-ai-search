@@ -1,7 +1,7 @@
 import os
 import re
-import streamlit as st
 import chromadb
+import streamlit as st
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from groq import Groq
@@ -17,173 +17,350 @@ st.set_page_config(
     layout="centered"
 )
 
-# ─────────────────────────────────────────────
-# CUSTOM CSS
-# ─────────────────────────────────────────────
-
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Serif+Display:ital@0;1&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Dark background */
-    .stApp {
-        background-color: #0f1117;
-        color: #e8e8e8;
-    }
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0a0a0f !important;
+    color: #e2e2e8;
+}
 
-    /* Hero title */
-    .hero-title {
-        font-family: 'Sora', sans-serif;
-        font-size: 2.6rem;
-        font-weight: 700;
-        background: linear-gradient(90deg, #b84040, #e05c5c, #f0a500);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem;
-    }
+.stApp {
+    background-color: #0a0a0f !important;
+}
 
-    .hero-sub {
-        color: #888;
-        font-size: 1rem;
-        margin-bottom: 2rem;
-    }
+#MainMenu, footer, header,
+.stDeployButton,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] { display: none !important; }
 
-    /* Input box */
-    .stTextInput > div > div > input {
-        background-color: #1c1f2b !important;
-        color: #f0f0f0 !important;
-        border: 1px solid #2e3249 !important;
-        border-radius: 10px !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 1rem !important;
-    }
+.block-container {
+    max-width: 640px !important;
+    padding: 0 2rem 5rem !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
 
-    .stTextInput > div > div > input:focus {
-        border-color: #b84040 !important;
-        box-shadow: 0 0 0 2px rgba(184, 64, 64, 0.2) !important;
-    }
+.block-container > div {
+    width: 100% !important;
+}
 
-    /* Button */
-    .stButton > button {
-        background: linear-gradient(135deg, #b84040, #e05c5c) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        padding: 0.6rem 2rem !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        width: 100% !important;
-        transition: opacity 0.2s !important;
-    }
+/* Answer card via st.container(key=...) */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(div.st-key-answer_card) > div,
+.st-key-answer_card {
+    background: #13131a !important;
+    border: 1px solid #1e1e2a !important;
+    border-left: 3px solid #b06a3a !important;
+    border-radius: 14px !important;
+    padding: 1.2rem 1.8rem !important;
+}
 
-    .stButton > button:hover {
-        opacity: 0.85 !important;
-    }
+/* ── HERO ── */
+.hero {
+    padding: 5rem 0 3rem;
+    text-align: center;
+    width: 100%;
+}
 
-    /* Answer card */
-    .answer-card {
-        background-color: #1c1f2b;
-        border-left: 3px solid #b84040;
-        border-radius: 12px;
-        padding: 1.5rem 1.8rem;
-        margin-top: 1.5rem;
-        color: #e0e0e0;
-        line-height: 1.75;
-        font-size: 0.97rem;
-    }
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c97d4e;
+    border: 1px solid rgba(201,125,78,0.25);
+    border-radius: 999px;
+    padding: 5px 14px;
+    margin-bottom: 1.6rem;
+}
 
-    /* Source chips */
-    .source-chip {
-        display: inline-block;
-        background-color: #252836;
-        color: #aaa;
-        font-size: 0.75rem;
-        padding: 3px 10px;
-        border-radius: 20px;
-        margin: 3px 3px 0 0;
-        border: 1px solid #2e3249;
-    }
+.hero-eyebrow-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #c97d4e;
+    display: inline-block;
+}
 
-    .source-chip a {
-        color: #e05c5c;
-        text-decoration: none;
-    }
+.hero-title {
+    font-family: 'DM Serif Display', Georgia, serif !important;
+    font-weight: 400 !important;
+    font-size: 3.2rem;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    color: #f0ede8;
+    margin-bottom: 1rem;
+}
 
-    /* Step badges */
-    .step-badge {
-        display: inline-block;
-        background: #b84040;
-        color: white;
-        font-size: 0.7rem;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 20px;
-        margin-right: 6px;
-        font-family: 'Sora', sans-serif;
-        letter-spacing: 0.05em;
-    }
+.hero-title .line1 {
+    color: #6a6a7a;
+    display: block;
+}
 
-    .step-row {
-        color: #888;
-        font-size: 0.85rem;
-        margin: 4px 0;
-    }
+.hero-title .line2 {
+    font-style: italic;
+    color: #c97d4e;
+    display: block;
+}
 
-    /* History item */
-    .history-item {
-        background: #161820;
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
-        margin-bottom: 0.8rem;
-        border: 1px solid #1e2130;
-    }
+.hero-sub {
+    font-size: 1rem;
+    font-weight: 300;
+    color: #6a6a7a;
+    line-height: 1.65;
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: center;
+}
 
-    .history-q {
-        color: #e05c5c;
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin-bottom: 0.4rem;
-    }
+.block-label {
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #4a4a5a;
+    margin-bottom: 0.7rem;
+    padding-left: 2px;
+}
 
-    .history-a {
-        color: #aaa;
-        font-size: 0.85rem;
-        line-height: 1.5;
-    }
+/* Global text contrast for all rendered markdown */
+.stMarkdown p,
+.stMarkdown li,
+.stMarkdown ol,
+.stMarkdown ul {
+    color: #c8c8d4 !important;
+    font-size: 0.96rem !important;
+    line-height: 1.75 !important;
+}
 
-    /* Divider */
-    hr {
-        border-color: #1e2130 !important;
-    }
+.stMarkdown strong {
+    color: #f5f2ed !important;
+    font-weight: 600 !important;
+}
 
-    /* Hide streamlit branding */
-    #MainMenu, footer, header {visibility: hidden;}
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+    font-family: 'DM Serif Display', Georgia, serif !important;
+    font-weight: 400 !important;
+    color: #f0ede8 !important;
+    margin: 1.4rem 0 0.6rem !important;
+    font-size: 1.3rem !important;
+}
+
+.stMarkdown h1:first-child,
+.stMarkdown h2:first-child,
+.stMarkdown h3:first-child {
+    margin-top: 0 !important;
+}
+
+/* ── SEARCH SECTION ── */
+.search-section {
+    margin-top: 2.8rem;
+    width: 100%;
+}
+
+div[data-testid="stTextInput"],
+div[data-testid="stButton"] {
+    width: 100% !important;
+}
+
+/* Streamlit input override */
+.stTextInput > label { display: none !important; }
+
+.stTextInput > div > div {
+    background: #13131a !important;
+    border: 1px solid #22222e !important;
+    border-radius: 12px !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.stTextInput > div > div:focus-within {
+    border-color: #6b4a30 !important;
+    box-shadow: 0 0 0 3px rgba(176,106,58,0.08) !important;
+}
+
+.stTextInput > div > div > input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #e2e2e8 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.97rem !important;
+    padding: 0.75rem 1rem !important;
+    caret-color: #c97d4e !important;
+}
+
+.stTextInput > div > div > input::placeholder {
+    color: #2e2e3e !important;
+}
+
+/* Button */
+.stButton { margin-top: 0.6rem; }
+
+.stButton > button {
+    background: #b06a3a !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 0 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.92rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.03em !important;
+    width: 100% !important;
+    transition: background 0.18s ease, transform 0.1s ease !important;
+}
+
+.stButton > button:hover {
+    background: #c97d4e !important;
+    transform: translateY(-1px) !important;
+}
+
+.stButton > button:active {
+    transform: translateY(0px) !important;
+}
+
+/* ── PIPELINE ── */
+.pipeline {
+    margin: 1.8rem 0 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.step-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: #38384a;
+}
+
+.step-row.active { color: #9a9aaa; }
+.step-row.done   { color: #6a6a7a; }
+
+.step-node {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid #22222e;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #38384a;
+}
+
+.step-row.done .step-node {
+    background: #b06a3a;
+    border-color: #b06a3a;
+    color: #fff;
+}
+
+/* ── ANSWER BLOCK ── */
+.answer-block {
+    margin-top: 2rem;
+    width: 100%;
+}
+
+/* ── SOURCES ── */
+.sources-block {
+    margin-top: 1.4rem;
+}
+
+.source-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 0.5rem;
+}
+
+.source-pill {
+    font-size: 0.73rem;
+    color: #5a5a6a;
+    background: #13131a;
+    border: 1px solid #1e1e2a;
+    border-radius: 999px;
+    padding: 4px 12px;
+    text-decoration: none !important;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+    display: inline-block;
+}
+
+.source-pill:hover {
+    border-color: #b06a3a;
+    color: #c97d4e;
+}
+
+/* ── DIVIDER ── */
+.section-divider {
+    border: none;
+    border-top: 1px solid #14141e;
+    margin: 2.8rem 0 2rem;
+}
+
+/* ── HISTORY ── */
+.history-block { }
+
+.history-item {
+    padding: 0.9rem 0;
+    border-bottom: 1px solid #111118;
+}
+
+.history-item:last-child { border-bottom: none; }
+
+.history-q {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #b06a3a;
+    margin-bottom: 4px;
+}
+
+.history-a {
+    font-size: 0.8rem;
+    color: #38384a;
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Spinner */
+[data-testid="stSpinner"] > div {
+    border-top-color: #b06a3a !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# LOAD ENV & INIT CLIENTS (cached)
+# INIT
 # ─────────────────────────────────────────────
 
 load_dotenv(dotenv_path=".env")
 
 @st.cache_resource
 def init_clients():
-    model       = SentenceTransformer("all-MiniLM-L6-v2")
-    groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    return model, groq_client
+    m = SentenceTransformer("all-MiniLM-L6-v2")
+    g = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    return m, g
 
 model, groq_client = init_clients()
-
-# Fresh ChromaDB collection per session
 chroma_client = chromadb.Client()
+
 if "collection" not in st.session_state:
     st.session_state.collection = chroma_client.create_collection("quora_search")
-
 if "history" not in st.session_state:
     st.session_state.history = []
 
@@ -191,129 +368,141 @@ if "history" not in st.session_state:
 # RAG FUNCTIONS
 # ─────────────────────────────────────────────
 
-def fetch_quora_data(query, num_results=10):
+def fetch_quora_data(query, num=10):
     search = GoogleSearch({
         "q": f"site:quora.com {query}",
-        "num": num_results,
-        "gl": "us", "hl": "en",
+        "num": num, "gl": "us", "hl": "en",
         "api_key": os.getenv("SERPAPI_KEY")
     })
-    organic = search.get_dict().get("organic_results", [])
     docs = []
-    for item in organic:
+    for item in search.get_dict().get("organic_results", []):
         title   = item.get("title", "")
         snippet = item.get("snippet", "")
         link    = item.get("link", "")
         if snippet:
-            docs.append({
-                "content": f"Title: {title}\nAnswer snippet: {snippet}",
-                "title": title,
-                "link": link
-            })
+            docs.append({"content": f"Title: {title}\nAnswer snippet: {snippet}", "title": title, "link": link})
     return docs
 
-def index_docs(docs, query_id):
+def index_docs(docs, qid):
     for i, doc in enumerate(docs):
-        embedding = model.encode(doc["content"]).tolist()
+        emb = model.encode(doc["content"]).tolist()
         st.session_state.collection.add(
             documents=[doc["content"]],
-            embeddings=[embedding],
-            ids=[f"{query_id}_{i}"]
+            embeddings=[emb],
+            ids=[f"{qid}_{i}"]
         )
 
-def retrieve(query, top_k=5):
-    count = st.session_state.collection.count()
-    if count == 0:
-        return []
-    qe = model.encode(query).tolist()
-    results = st.session_state.collection.query(
-        query_embeddings=[qe],
-        n_results=min(top_k, count)
+def retrieve(query, k=5):
+    n = st.session_state.collection.count()
+    if n == 0: return []
+    res = st.session_state.collection.query(
+        query_embeddings=[model.encode(query).tolist()],
+        n_results=min(k, n)
     )
-    return results["documents"][0]
+    return res["documents"][0]
 
 def generate_answer(query, chunks):
-    context = "\n\n---\n\n".join(chunks)
-    prompt  = f"""You are a helpful assistant. Synthesize the Quora discussions below into a clear, detailed answer.
-If different people have different opinions, mention that too.
-
-QUORA CONTEXT:
-{context}
-
-QUESTION: {query}
-
-Give a comprehensive, well-structured answer."""
-
-    response = groq_client.chat.completions.create(
+    ctx = "\n\n---\n\n".join(chunks)
+    resp = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
-            {"role": "system", "content": "You synthesize Quora discussions into helpful answers."},
-            {"role": "user",   "content": prompt}
+            {"role": "system", "content": "You synthesize Quora discussions into clear, well-structured answers. Use markdown with ## headers and bullet points where helpful. Be detailed but concise."},
+            {"role": "user", "content": f"QUORA CONTEXT:\n{ctx}\n\nQUESTION: {query}\n\nProvide a comprehensive, well-structured answer using markdown formatting."}
         ],
-        temperature=0.5,
-        max_tokens=1024,
+        temperature=0.5, max_tokens=1024
     )
-    return response.choices[0].message.content
+    return resp.choices[0].message.content
 
 def run_rag(query):
-    query_id = re.sub(r"\W+", "_", query[:20])
-    docs     = fetch_quora_data(query)
+    qid  = re.sub(r"\W+", "_", query[:20])
+    docs = fetch_quora_data(query)
     if not docs:
         return "No Quora results found. Try rephrasing your question.", []
-    index_docs(docs, query_id)
-    chunks = retrieve(query, top_k=5)
-    answer = generate_answer(query, chunks)
-    return answer, docs
+    index_docs(docs, qid)
+    chunks = retrieve(query)
+    return generate_answer(query, chunks), docs
 
 # ─────────────────────────────────────────────
-# UI
+# UI — HERO
 # ─────────────────────────────────────────────
 
-st.markdown('<div class="hero-title">Quora AI Search</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-sub">Ask anything. Get answers synthesized from real Quora discussions.</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="hero">
+    <div class="hero-eyebrow">
+        <span class="hero-eyebrow-dot"></span>
+        Powered by real Quora discussions
+    </div>
+    <h1 class="hero-title"><span class="line1">Ask anything.</span><span class="line2">Get real answers.</span></h1>
+    <p class="hero-sub">Searches live Quora discussions and synthesizes them into a single, clear answer using AI.</p>
+</div>
+""", unsafe_allow_html=True)
 
-query = st.text_input("", placeholder="e.g. How do I become an AI engineer in 2026?", label_visibility="collapsed")
-ask   = st.button("Search Quora →")
+# ─────────────────────────────────────────────
+# UI — SEARCH
+# ─────────────────────────────────────────────
 
-if ask and query.strip():
+query = st.text_input(
+    "",
+    placeholder="e.g. How do I become an AI engineer in 2026?",
+    label_visibility="collapsed"
+)
+search_clicked = st.button("Search Quora →")
+
+# ─────────────────────────────────────────────
+# UI — RESULTS
+# ─────────────────────────────────────────────
+
+if search_clicked and query.strip():
     with st.spinner(""):
-        # Show live steps
-        steps = st.empty()
-        steps.markdown("""
-        <div class="step-row"><span class="step-badge">1</span> Searching Quora via SerpAPI...</div>
-        """, unsafe_allow_html=True)
+        status = st.empty()
+
+        status.markdown("""
+        <div class="pipeline">
+            <div class="step-row active"><div class="step-node">1</div>Searching Quora via SerpAPI...</div>
+            <div class="step-row"><div class="step-node">2</div>Indexing into ChromaDB</div>
+            <div class="step-row"><div class="step-node">3</div>Generating answer with Groq</div>
+        </div>""", unsafe_allow_html=True)
 
         answer, docs = run_rag(query.strip())
 
-        steps.markdown("""
-        <div class="step-row"><span class="step-badge">1</span> Fetched Quora results &nbsp;✓</div>
-        <div class="step-row"><span class="step-badge">2</span> Indexed into ChromaDB &nbsp;✓</div>
-        <div class="step-row"><span class="step-badge">3</span> Generated answer with Groq &nbsp;✓</div>
-        """, unsafe_allow_html=True)
+        status.markdown("""
+        <div class="pipeline">
+            <div class="step-row done"><div class="step-node">✓</div>Fetched Quora results</div>
+            <div class="step-row done"><div class="step-node">✓</div>Indexed into ChromaDB</div>
+            <div class="step-row done"><div class="step-node">✓</div>Generated answer with Groq</div>
+        </div>""", unsafe_allow_html=True)
 
-    # Answer card
-    st.markdown(f'<div class="answer-card">{answer}</div>', unsafe_allow_html=True)
+    # Answer label
+    st.markdown('<div class="answer-block"><div class="block-label">Answer</div></div>', unsafe_allow_html=True)
 
-    # Source chips
+    # Answer rendered inside a styled card using a container
+    with st.container(key="answer_card"):
+        st.markdown(answer)
+
+    # Sources
     if docs:
-        st.markdown("<br>**Sources from Quora:**", unsafe_allow_html=True)
-        chips = ""
-        for doc in docs[:6]:
-            title = doc["title"][:45] + "..." if len(doc["title"]) > 45 else doc["title"]
-            chips += f'<span class="source-chip"><a href="{doc["link"]}" target="_blank">↗ {title}</a></span>'
-        st.markdown(chips, unsafe_allow_html=True)
+        pills = "".join([
+            f'<a class="source-pill" href="{d["link"]}" target="_blank">↗ {d["title"][:55]}{"…" if len(d["title"])>55 else ""}</a>'
+            for d in docs[:6]
+        ])
+        st.markdown(f"""
+        <div class="sources-block">
+            <div class="block-label">Sources</div>
+            <div class="source-pills">{pills}</div>
+        </div>""", unsafe_allow_html=True)
 
     # Save to history
-    st.session_state.history.insert(0, {"q": query.strip(), "a": answer[:300] + "..."})
+    st.session_state.history.insert(0, {"q": query.strip(), "a": answer[:260] + "…"})
 
-# History
+# ─────────────────────────────────────────────
+# UI — HISTORY
+# ─────────────────────────────────────────────
+
 if st.session_state.history:
-    st.markdown("<br><hr>", unsafe_allow_html=True)
-    st.markdown("**Recent searches**")
-    for item in st.session_state.history[:5]:
-        st.markdown(f"""
-        <div class="history-item">
-            <div class="history-q">Q: {item['q']}</div>
-            <div class="history-a">{item['a']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="block-label">Recent searches</div>', unsafe_allow_html=True)
+    items = "".join([
+        f'<div class="history-item"><div class="history-q">↳ {h["q"]}</div><div class="history-a">{h["a"]}</div></div>'
+        for h in st.session_state.history[:5]
+    ])
+    st.markdown(f'<div class="history-block">{items}</div>', unsafe_allow_html=True)
